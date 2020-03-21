@@ -1,0 +1,48 @@
+on init
+    #create mountpoint for persist partition
+    mkdir /persist 0771 system system
+
+on post-fs
+    chown system system /persist
+    chmod 0771 /persist
+
+    # We restorecon /persist to set SEPolicy label.
+    restorecon /persist
+    # Sepcify efs partition label
+    restorecon -R /efs
+
+on post-fs-data
+    # Create /data/key_provisioning dir and get proper encryption policy installed
+    # Key Installation
+    mkdir /data/key_provisioning 0771 system system
+    # Blowfish service
+    mkdir /data/tee 0700 system system
+    mkdir /dev/socket/iwt 0770 system system
+
+
+on fs
+    # Blowfish service
+    start tz_service
+    setprop sys.blowfish.loaded true
+
+# Blowfish service
+service tz_service /system/bin/tzdaemon
+    class core
+    socket tz stream 0666 system system
+    user system
+    group system
+    capabilities IPC_LOCK
+    disabled
+
+service taa_service /system/bin/taadaemon
+    class core
+    user system
+    group system
+    disabled
+    oneshot
+
+#on property:sys.tzdaemon=Ready
+#    start taa_service
+
+on property:init.svc.tz_service=stopped
+    setprop sys.tzdaemon NotReady
